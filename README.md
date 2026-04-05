@@ -29,8 +29,15 @@ This initial version implements:
 The architecture separates concerns so the product can grow toward the full KDE-native vision:
 
 - Chapters/transcripts are stored, will be eventually accessible in some  form
-- MPRIS/system tray integration
-- Auto download on per podcast basis
+- MPRIS/system tray integration WIP
+- Auto download on per podcast basis WIP
+
+## What this is not
+ - No cross device sync
+ - No mobile app
+ - No discovery, you find an RSS feed and add manually
+ - Not optimized for non desktop usage
+ - Not likely to have any of those four in near future
 
 ## Run
 

@@ -41,11 +41,6 @@ pip install -r requirements.txt
 python -m plainpod
 ```
 
-## To be implemented
-
-This scaffold intentionally keeps some functionality minimal while providing the structure for expansion:
-
-
 
 ## Data location
 

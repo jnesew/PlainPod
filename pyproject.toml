@@ -16,3 +16,9 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+plainpod = ["resources/**/*", "qml/**/*"]
+
+[project.scripts]
+plainpod = "plainpod.__main__:main"

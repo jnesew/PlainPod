@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv or sys.argv[1:])
     log_file = configure_logging(db_path().parent)
 
-    qml_file = Path(__file__).resolve().parents[2] / "qml" / "Main.qml"
+    qml_file = Path(__file__).resolve().parents[1] / "qml" / "Main.qml"
     if args.diagnose:
         _print_diagnostics(qml_file)
     logger.info("PlainPod startup. Logs at: %s", log_file)

@@ -317,6 +317,8 @@ class AppViewModel(QObject):
         if not episode:
             self.logger.error("Play requested for missing episode id=%s", episode_id)
             return
+        self._persist_playback_progress()
+        self._now_playing_episode_id = None
         start_position_ms = self._resume_position_ms_for_episode(episode)
         if episode.local_path:
             self.player.play_file(episode.local_path, start_position_ms=start_position_ms)
@@ -374,6 +376,8 @@ class AppViewModel(QObject):
         if episode is None or not episode.local_path:
             self.error.emit("Downloaded file is not available")
             return
+        self._persist_playback_progress()
+        self._now_playing_episode_id = None
         start_position_ms = self._resume_position_ms_for_episode(episode)
         self.player.play_file(episode.local_path, start_position_ms=start_position_ms)
         self._set_now_playing_episode(episode_id)

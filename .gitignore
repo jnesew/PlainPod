@@ -1,7 +1,16 @@
+# Python caches & virtual environments
 __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
 
+# Build artifacts
 *.egg-info/
+build-dir/
+dist/
+
+# User data
 subscriptions.opml
+
+
+io*

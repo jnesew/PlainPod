@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot, ClassInfo
 from PySide6.QtDBus import QDBusAbstractAdaptor, QDBusConnection, QDBusObjectPath
@@ -130,6 +130,24 @@ class MprisService(QObject):
         pa.canPlayChanged.emit()
         pa.canPauseChanged.emit()
         pa.canSeekChanged.emit()
+
+        from PySide6.QtDBus import QDBusMessage
+        msg = QDBusMessage.createSignal(
+            MPRIS_OBJECT_PATH,
+            "org.freedesktop.DBus.Properties",
+            "PropertiesChanged",
+        )
+        changed_props: dict[str, Any] = {
+            "PlaybackStatus": self._playback_status,
+            "Metadata": self._metadata,
+            "Volume": self._volume,
+            "Rate": self._rate,
+            "CanPlay": pa.CanPlay,
+            "CanPause": pa.CanPause,
+            "CanSeek": pa.CanSeek,
+        }
+        msg.setArguments(["org.mpris.MediaPlayer2.Player", changed_props, []])
+        QDBusConnection.sessionBus().send(msg)
 
     @property
     def playback_status(self) -> str:

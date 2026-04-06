@@ -12,6 +12,11 @@ Kirigami.ApplicationWindow {
     visible: true
     title: "PlainPod"
 
+    onClosing: function(close) {
+        close.accepted = false
+        root.hide()
+    }
+
     property int currentView: 0 // 0 Subscriptions, 1 Downloads, 2 Queue, 3 Settings
     property int activePodcastIndex: -1
     property int playingQueueIndex: 1

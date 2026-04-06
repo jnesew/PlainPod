@@ -74,6 +74,7 @@ class AppViewModel(QObject):
     queue_model_changed = Signal()
     now_playing_title_changed = Signal()
     now_playing_podcast_changed = Signal()
+    now_playing_episode_id_changed = Signal()
     playback_position_ms_changed = Signal()
     playback_duration_ms_changed = Signal()
     is_playing_changed = Signal()
@@ -392,7 +393,9 @@ class AppViewModel(QObject):
         return max(0, int(episode.progress_seconds or 0) * 1000)
 
     def _set_now_playing_episode(self, episode_id: int | None) -> None:
-        self._now_playing_episode_id = episode_id
+        if self._now_playing_episode_id != episode_id:
+            self._now_playing_episode_id = episode_id
+            self.now_playing_episode_id_changed.emit()
         title = ""
         podcast = ""
         if episode_id is not None:
@@ -842,6 +845,10 @@ class AppViewModel(QObject):
     @Property(str, notify=now_playing_podcast_changed)
     def now_playing_podcast(self) -> str:
         return self._now_playing_podcast
+
+    @Property(int, notify=now_playing_episode_id_changed)
+    def now_playing_episode_id(self) -> int:
+        return self._now_playing_episode_id if self._now_playing_episode_id is not None else -1
 
     @Property(int, notify=playback_position_ms_changed)
     def playback_position_ms(self) -> int:

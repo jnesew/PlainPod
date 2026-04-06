@@ -7,9 +7,9 @@ import os
 import sys
 
 from PySide6.QtCore import QObject, Slot, QUrl
-from PySide6.QtGui import QGuiApplication, QIcon
+from PySide6.QtGui import QGuiApplication, QIcon, QAction
 from PySide6.QtQml import QQmlApplicationEngine
-from PySide6.QtWidgets import QApplication, QFileDialog
+from PySide6.QtWidgets import QApplication, QFileDialog, QSystemTrayIcon, QMenu
 
 from .download_manager import DownloadManager
 from .opml import export_opml, import_opml
@@ -19,6 +19,7 @@ from .repository import Repository
 from .settings import SettingsStore
 from .viewmodel import AppViewModel
 from .logging_utils import configure_logging
+from .mpris import MprisService
 
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,7 @@ def main(argv: list[str] | None = None) -> None:
 
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(str(icon_path)))
+    app.setQuitOnLastWindowClosed(False)
     if QGuiApplication.primaryScreen() is None and forced_platform not in {"offscreen", "minimal"}:
         print(
             "[plainpod] Qt started but no primary screen was detected. "
@@ -135,6 +137,39 @@ def main(argv: list[str] | None = None) -> None:
     if not engine.rootObjects():
         print(f"[plainpod] Failed to load QML UI from {qml_file}", file=sys.stderr)
         sys.exit(1)
+
+    window = engine.rootObjects()[0]
+
+    tray = QSystemTrayIcon(QIcon(str(icon_path)), app)
+    menu = QMenu()
+
+    toggle_action = QAction("Show/Hide", app)
+    toggle_action.triggered.connect(lambda: window.setVisible(not window.isVisible()))
+    menu.addAction(toggle_action)
+
+    play_pause_action = QAction("Play/Pause", app)
+    play_pause_action.triggered.connect(vm.toggle_playback)
+    menu.addAction(play_pause_action)
+
+    quit_action = QAction("Quit", app)
+    quit_action.triggered.connect(app.quit)
+    menu.addAction(quit_action)
+
+    tray.setContextMenu(menu)
+    tray.setToolTip("PlainPod")
+
+    def on_tray_activated(reason: QSystemTrayIcon.ActivationReason) -> None:
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            window.setVisible(not window.isVisible())
+            if window.isVisible():
+                window.requestActivate()
+
+    tray.activated.connect(on_tray_activated)
+    tray.show()
+
+    mpris = MprisService(vm, player)
+    mpris.register()
+    app.aboutToQuit.connect(mpris.unregister)
 
     app.aboutToQuit.connect(repo.close)
     sys.exit(app.exec())

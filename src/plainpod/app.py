@@ -143,17 +143,33 @@ def main(argv: list[str] | None = None) -> None:
     tray = QSystemTrayIcon(QIcon(str(icon_path)), app)
     menu = QMenu()
 
-    toggle_action = QAction("Show/Hide", app)
+    toggle_action = QAction("Show Window", app)
     toggle_action.triggered.connect(lambda: window.setVisible(not window.isVisible()))
     menu.addAction(toggle_action)
 
-    play_pause_action = QAction("Play/Pause", app)
+    play_pause_action = QAction("Play", app)
     play_pause_action.triggered.connect(vm.toggle_playback)
     menu.addAction(play_pause_action)
+
+    skip_back_action = QAction("Skip Back", app)
+    skip_back_action.triggered.connect(vm.skip_back)
+    menu.addAction(skip_back_action)
+
+    skip_forward_action = QAction("Skip Forward", app)
+    skip_forward_action.triggered.connect(vm.skip_forward)
+    menu.addAction(skip_forward_action)
+
+    menu.addSeparator()
 
     quit_action = QAction("Quit", app)
     quit_action.triggered.connect(app.quit)
     menu.addAction(quit_action)
+
+    def _update_menu() -> None:
+        toggle_action.setText("Hide Window" if window.isVisible() else "Show Window")
+        play_pause_action.setText("Pause" if vm.is_playing else "Play")
+
+    menu.aboutToShow.connect(_update_menu)
 
     tray.setContextMenu(menu)
     tray.setToolTip("PlainPod")

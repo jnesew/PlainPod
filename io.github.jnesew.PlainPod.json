@@ -14,9 +14,7 @@
     "--socket=pulseaudio",
     "--share=network",
     "--filesystem=xdg-download",
-    "--own-name=org.mpris.MediaPlayer2.io.github.jnesew.PlainPod",
-    "--talk-name=org.kde.StatusNotifierWatcher",
-    "--talk-name=org.freedesktop.DBus"
+    "--talk-name=org.kde.StatusNotifierWatcher"
   ],
   "modules": [                                                                                         
     {

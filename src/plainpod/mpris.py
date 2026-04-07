@@ -129,7 +129,7 @@ class _PlayerInterface(ServiceInterface):
 
     @signal(name="Seeked")
     def seeked(self) -> "x":
-        return int(self._svc.position_us)
+        return int(self._svc.snapshot("position_us"))
 
     @dbus_property(access=PropertyAccess.READ, name="PlaybackStatus")
     def playback_status(self) -> "s":
@@ -267,7 +267,10 @@ class MprisService(QObject):
         self._pos_timer.setInterval(500)
         self._pos_timer.timeout.connect(self._tick_position)
         self._pos_timer.start()
-
+        self._seeked_debounce_timer = QTimer(self)
+        self._seeked_debounce_timer.setSingleShot(True)
+        self._seeked_debounce_timer.setInterval(80) 
+        self._seeked_debounce_timer.timeout.connect(self._emit_seeked)
         self._sync_from_vm()
 
     def register(self) -> bool:
@@ -328,7 +331,7 @@ class MprisService(QObject):
         with self._snapshot_lock:
             self._snapshot_data["position_us"] = target_ms * 1000
             self._position_us = target_ms * 1000
-        self._emit_seeked()
+        self._seeked_debounce_timer.start()
 
     @Slot(str, int)
     def set_position(self, track_id: str, position_us: int) -> None:
@@ -340,7 +343,7 @@ class MprisService(QObject):
         with self._snapshot_lock:
             self._snapshot_data["position_us"] = target_ms * 1000
             self._position_us = target_ms * 1000
-        self._emit_seeked()
+        self._seeked_debounce_timer.start()
 
     @Slot(float)
     def set_volume(self, value: float) -> None:

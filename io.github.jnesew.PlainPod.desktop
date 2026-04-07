@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=PlainPod
+Comment=A simple podcast player
+Exec=plainpod
+Icon=io.github.jnesew.PlainPod
+Terminal=false
+Type=Application
+Categories=AudioVideo;Player;
+Keywords=podcast;feed;opml;audio;
+StartupWMClass=io.github.jnesew.PlainPod

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.jnesew.PlainPod</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>PlainPod</name>
+  <summary>A simple podcast player</summary>
+
+  <description>
+    <p>PlainPod is a straightforward podcast player with a clean layout that does not hide features behind complex menus.</p>
+    <p>Features:</p>
+    <ul>
+      <li>Subscribe to podcast feeds and refresh them</li>
+      <li>Persistent library (SQLite)</li>
+      <li>Episode queue and playback state saving</li>
+      <li>Stream or download episodes locally</li>
+      <li>OPML import/export</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.jnesew.PlainPod.desktop</launchable>
+
+  <categories>
+    <category>AudioVideo</category>
+    <category>Player</category>
+  </categories>
+
+  <keywords>
+    <keyword>podcast</keyword>
+    <keyword>player</keyword>
+    <keyword>feed</keyword>
+    <keyword>opml</keyword>
+  </keywords>
+
+  <url type="homepage">https://github.com/jnesew/PlainPod</url>
+  <url type="bugtracker">https://github.com/jnesew/PlainPod/issues</url>
+
+  <developer id="io.github.jnesew">
+    <name>jnesew</name>
+  </developer>
+
+  <provides>
+    <binary>plainpod</binary>
+  </provides>
+
+  <releases>
+    <release version="0.1.0" date="2025-04-05">
+      <description>
+        <p>Initial release with feed subscription, playback, downloads, and OPML support.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -536,6 +536,10 @@ Kirigami.ApplicationWindow {
                                         onClicked: vm.play_download(episode_id)
                                     }
                                     Button {
+                                        icon.name: "list-add"
+                                        onClicked: vm.enqueue_episode(episode_id)
+                                    }
+                                    Button {
                                         icon.name: "edit-delete"
                                         onClicked: vm.delete_download(episode_id)
                                     }
@@ -612,7 +616,7 @@ Kirigami.ApplicationWindow {
                                     spacing: Kirigami.Units.smallSpacing
                                     Layout.alignment: Qt.AlignHCenter
                                     
-                                    // Prevents massive titles from destroying the centering or pushing buttons off-screen
+                                    // Prevents massive titles from destroying the centering or pushing buttons off-screen also fix this already implemented better  way in other layouts
                                     Layout.maximumWidth: queueList.width - 200 
 
                                     Rectangle {
@@ -667,7 +671,10 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 Item { Layout.fillWidth: true } 
-
+                                Button {
+                                    text: "Play"
+                                    onClicked: vm.play_episode(episode_id)
+                                }
                                 ToolButton {
                                     icon.name: "window-close"
                                     Layout.alignment: Qt.AlignRight

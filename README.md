@@ -4,7 +4,7 @@ PlainPod is a simply a podcast player with a layout that doesn't  add too much c
 This is personal preference as I found most linux native podcast players feature rich but clunky, probably because they are  feature rich, tradeoffs. 
 
 ### Subscription
-![Subscription UI](resources/images/sub.png)
+![Subscription UI](src/resources/images/sub.png)
 
 This initial version implements:
 
@@ -15,13 +15,13 @@ This initial version implements:
 - Episode streaming URL handoff to player
 - Episode download to local storage
 - OPML import/export
-
+- MPRIS/system tray integration 
 
 ### Queue
-![Queue view](resources/images/que.png)
+![Queue view](src/resources/images/que.png)
 
 ### Download
-![Download screen](resources/images/download.png)
+![Download screen](src/resources/images/download.png)
 
 
 ## To be implemented
@@ -29,7 +29,6 @@ This initial version implements:
 The architecture separates concerns so the product can grow toward the full KDE-native vision:
 
 - Chapters/transcripts are stored, will be eventually accessible in some  form
-- MPRIS/system tray integration WIP
 - Auto download on per podcast basis WIP
 
 ## What this is not

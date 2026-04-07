@@ -47,7 +47,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python -m plainpod
 ```
-
+[Or get the flatpack (.flatpakref)](https://github.com/jnesew/PlainPod/releases/latest/download/plainpod.flatpakref)
 
 ## Data location
 

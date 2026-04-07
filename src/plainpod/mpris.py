@@ -318,7 +318,7 @@ class MprisPlayerAdaptor(QDBusAbstractAdaptor):
     canSeekChanged = Signal()
     minimumRateChanged = Signal()
     maximumRateChanged = Signal()
-    seeked = Signal(int)
+    seeked = Signal("qlonglong")
 
     def __init__(self, parent: MprisService):
         super().__init__(parent)
@@ -364,7 +364,7 @@ class MprisPlayerAdaptor(QDBusAbstractAdaptor):
     def Volume(self, value: float) -> None:
         self._s._vm.set_volume(float(value))
 
-    @Property(int, notify=playerPositionChanged)
+    @Property("qlonglong", notify=playerPositionChanged)
     def Position(self) -> int:
         return self._s.position_us
 
@@ -426,11 +426,11 @@ class MprisPlayerAdaptor(QDBusAbstractAdaptor):
     def Stop(self) -> None:
         self._s.stop()
 
-    @Slot(int)
+    @Slot("qlonglong")
     def Seek(self, offset: int) -> None:
         self._s.seek(int(offset))
 
-    @Slot(QDBusObjectPath, int)
+    @Slot(QDBusObjectPath, "qlonglong")
     def SetPosition(self, track_id: QDBusObjectPath, position: int) -> None:
         self._s.set_position(track_id, int(position))
 

@@ -15,7 +15,7 @@ This initial version implements:
 - Episode streaming URL handoff to player
 - Episode download to local storage
 - OPML import/export
-
+- MPRIS/system tray integration 
 
 ### Queue
 ![Queue view](resources/images/que.png)
@@ -29,7 +29,6 @@ This initial version implements:
 The architecture separates concerns so the product can grow toward the full KDE-native vision:
 
 - Chapters/transcripts are stored, will be eventually accessible in some  form
-- MPRIS/system tray integration WIP
 - Auto download on per podcast basis WIP
 
 ## What this is not

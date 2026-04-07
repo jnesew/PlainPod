@@ -780,8 +780,8 @@ Kirigami.ApplicationWindow {
                                 RowLayout {
                                     Kirigami.FormData.label: "SQLite database"
                                     Layout.fillWidth: true
-                                    Label { Layout.fillWidth: true; text: "~/.local/share/plainpod/plainpod.db"; elide: Text.ElideMiddle }
-                                    Button { text: "Browse..." }
+                                    Label { Layout.fillWidth: true; text: vm.database_path; elide: Text.ElideMiddle }
+                                    Button { text: "Browse..."; onClicked: vm.browse_database_path() }
                                 }
                                 RowLayout {
                                     Kirigami.FormData.label: "OPML"

@@ -109,15 +109,18 @@ class _PlayerInterface(ServiceInterface):
 
     @method(name="Next")
     def next_(self):
-        pass
+        self._svc.seek_requested.emit(self._svc._vm.skip_forward_seconds * 1000 * 1000)
 
     @method(name="Previous")
     def previous(self):
-        pass
+        self._svc.seek_requested.emit(-self._svc._vm.skip_back_seconds * 1000 * 1000)
 
     @method(name="Seek")
     def seek(self, offset_us: "x"):
-        self._svc.seek_requested.emit(int(offset_us))
+        if int(offset_us) >= 0:
+            self._svc.seek_requested.emit(self._svc._vm.skip_forward_seconds * 1000 * 1000)
+        else:
+            self._svc.seek_requested.emit(-self._svc._vm.skip_back_seconds * 1000 * 1000)
 
     @method(name="SetPosition")
     def set_position(self, track_id: "o", position_us: "x"):
@@ -177,11 +180,11 @@ class _PlayerInterface(ServiceInterface):
 
     @dbus_property(access=PropertyAccess.READ, name="CanGoNext")
     def can_go_next(self) -> "b":
-        return False
+        return bool(self._svc.snapshot("can_seek"))
 
     @dbus_property(access=PropertyAccess.READ, name="CanGoPrevious")
     def can_go_previous(self) -> "b":
-        return False
+        return bool(self._svc.snapshot("can_seek"))
 
     @dbus_property(access=PropertyAccess.READ, name="CanPlay")
     def can_play(self) -> "b":

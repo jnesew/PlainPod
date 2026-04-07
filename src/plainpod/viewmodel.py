@@ -68,6 +68,7 @@ class AppViewModel(QObject):
     skip_forward_seconds_changed = Signal()
     download_directory_changed = Signal()
     auto_download_policy_changed = Signal()
+    database_path_changed = Signal()
     podcast_model_changed = Signal()
     episode_model_changed = Signal()
     download_model_changed = Signal()
@@ -206,7 +207,10 @@ class AppViewModel(QObject):
                 description=feed.description,
                 artwork_url=feed.artwork_url,
             )
+            existing_guids = {e.guid for e in self.repo.episodes_for_podcast(pid)}
             self.repo.upsert_episodes(pid, feed.episodes)
+            if self._settings.auto_download_policy == "all_episodes":
+                self._apply_download_policy(pid, existing_guids)
             self.refresh_podcasts()
             self.select_podcast(pid)
             self.info.emit(f"Subscribed to {feed.title}")
@@ -305,7 +309,9 @@ class AppViewModel(QObject):
             return
         try:
             feed = fetch_feed(row.feed_url)
+            existing_guids = {e.guid for e in self.repo.episodes_for_podcast(row.id)}
             self.repo.upsert_episodes(row.id, feed.episodes)
+            self._apply_download_policy(row.id, existing_guids)
             self.select_podcast(row.id)
             self.info.emit(f"Refreshed {row.title}")
         except Exception as exc:
@@ -330,6 +336,19 @@ class AppViewModel(QObject):
         self.playback_position_ms_changed.emit()
         self.refresh_queue()
         self.info.emit(f"Playing {episode.title}")
+
+    def _apply_download_policy(self, podcast_id: int, existing_guids: set[str]) -> None:
+        if self._settings.auto_download_policy == "off":
+            return
+        episodes = self.repo.episodes_for_podcast(podcast_id)
+        if self._settings.auto_download_policy == "new_episodes":
+            for ep in episodes:
+                if ep.guid not in existing_guids and not ep.local_path:
+                    self.download_episode(ep.id)
+        elif self._settings.auto_download_policy == "all_episodes":
+            for ep in episodes:
+                if not ep.local_path:
+                    self.download_episode(ep.id)
 
     @Slot(int)
     def download_episode(self, episode_id: int) -> None:
@@ -968,3 +987,16 @@ class AppViewModel(QObject):
         path = QFileDialog.getExistingDirectory(None, "Choose Download Directory", self.download_directory)
         if path:
             self.download_directory = path
+
+    @Property(str, notify=database_path_changed)
+    def database_path(self) -> str:
+        return self._settings.database_path
+
+    @Slot()
+    def browse_database_path(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getSaveFileName(None, "Choose SQLite Database", self.database_path, "SQLite files (*.db *.sqlite3);;All Files (*)")
+        if path:
+            self._settings = replace(self._settings, database_path=self.settings.set_database_path(path))
+            self.database_path_changed.emit()
+            self.info.emit("Please restart PlainPod for the database change to take effect.")

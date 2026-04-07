@@ -14,6 +14,7 @@ This initial version implements:
 - Basic playback state persistence
 - Episode streaming URL handoff to player
 - Episode download to local storage
+- Global auto download policy (all, new, none)
 - OPML import/export
 - MPRIS/system tray integration 
 

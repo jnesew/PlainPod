@@ -109,11 +109,11 @@ class _PlayerInterface(ServiceInterface):
 
     @method(name="Next")
     def next_(self):
-        pass
+        self._svc.seek_requested.emit(self._svc._vm.skip_forward_seconds * 1000 * 1000)
 
     @method(name="Previous")
     def previous(self):
-        pass
+        self._svc.seek_requested.emit(-self._svc._vm.skip_back_seconds * 1000 * 1000)
 
     @method(name="Seek")
     def seek(self, offset_us: "x"):
@@ -177,11 +177,11 @@ class _PlayerInterface(ServiceInterface):
 
     @dbus_property(access=PropertyAccess.READ, name="CanGoNext")
     def can_go_next(self) -> "b":
-        return False
+        return True
 
     @dbus_property(access=PropertyAccess.READ, name="CanGoPrevious")
     def can_go_previous(self) -> "b":
-        return False
+        return True
 
     @dbus_property(access=PropertyAccess.READ, name="CanPlay")
     def can_play(self) -> "b":
@@ -207,8 +207,8 @@ class MprisService(QObject):
     pause_requested = Signal()
     play_pause_requested = Signal()
     stop_requested = Signal()
-    seek_requested = Signal(int)
-    set_position_requested = Signal(str, int)
+    seek_requested = Signal("qint64")                   
+    set_position_requested = Signal(str, "qint64")       
     volume_requested = Signal(float)
     playback_speed_requested = Signal(float)
     quit_requested = Signal()
@@ -323,28 +323,31 @@ class MprisService(QObject):
     def stop(self) -> None:
         self._player.pause()
 
-    @Slot(int)
+    @Slot("qint64")                                  # ← CHANGED
     def seek(self, offset_us: int) -> None:
-        delta_ms = int(offset_us) // 1000
+        """Handle MPRIS Seek(offset) – relative seek in microseconds."""
+        delta_ms = offset_us // 1000
         target_ms = max(0, self._vm.playback_position_ms + delta_ms)
         self._vm.seek(target_ms)
+
         with self._snapshot_lock:
             self._snapshot_data["position_us"] = target_ms * 1000
             self._position_us = target_ms * 1000
         self._seeked_debounce_timer.start()
 
-    @Slot(str, int)
+    @Slot(str, "qint64")                                 # ← CHANGED
     def set_position(self, track_id: str, position_us: int) -> None:
         eid = self._vm.now_playing_episode_id
         if eid < 0 or track_id != _track_path(eid):
             return
-        target_ms = max(0, int(position_us) // 1000)
+
+        target_ms = max(0, position_us // 1000)
         self._vm.seek(target_ms)
+
         with self._snapshot_lock:
             self._snapshot_data["position_us"] = target_ms * 1000
             self._position_us = target_ms * 1000
         self._seeked_debounce_timer.start()
-
     @Slot(float)
     def set_volume(self, value: float) -> None:
         clamped = max(0.0, min(float(value), 1.0))

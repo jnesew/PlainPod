@@ -112,10 +112,11 @@ def main(argv: list[str] | None = None) -> None:
             file=sys.stderr,
         )
 
-    repo = Repository(db_path())
+    settings = SettingsStore()
+    app_settings = settings.load()
+    repo = Repository(Path(app_settings.database_path))
     player = PlayerController()
     downloads = DownloadManager(downloads_dir())
-    settings = SettingsStore()
     vm = AppViewModel(repo, downloads, player, settings)
     opml = OpmlController(vm, repo)
     vm.error.connect(lambda msg: logger.error("UI error: %s", msg))

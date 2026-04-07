@@ -17,6 +17,7 @@ class AppSettings:
     skip_forward_seconds: int
     download_directory: str
     auto_download_policy: str
+    database_path: str
 
 
 class SettingsStore:
@@ -30,6 +31,7 @@ class SettingsStore:
     KEY_SKIP_FORWARD_SECONDS = "playback/skip_forward_seconds"
     KEY_DOWNLOAD_DIRECTORY = "downloads/directory"
     KEY_AUTO_DOWNLOAD_POLICY = "downloads/auto_download_policy"
+    KEY_DATABASE_PATH = "general/database_path"
 
     AUTO_DOWNLOAD_POLICIES = {"off", "new_episodes", "all_episodes"}
 
@@ -37,7 +39,9 @@ class SettingsStore:
         self._settings = QSettings(self.ORG_NAME, self.APP_NAME)
 
     def load(self) -> AppSettings:
+        from .paths import db_path
         default_download_dir = str(downloads_dir())
+        default_db_path = str(db_path())
         startup_behavior = self._as_bool(self._settings.value(self.KEY_STARTUP_BEHAVIOR, False), default=False)
         notifications_enabled = self._as_bool(
             self._settings.value(self.KEY_NOTIFICATIONS_ENABLED, True),
@@ -54,7 +58,7 @@ class SettingsStore:
         auto_download_policy = str(self._settings.value(self.KEY_AUTO_DOWNLOAD_POLICY, "off") or "off")
         if auto_download_policy not in self.AUTO_DOWNLOAD_POLICIES:
             auto_download_policy = "off"
-
+        database_path = str(self._settings.value(self.KEY_DATABASE_PATH, default_db_path) or default_db_path)
         return AppSettings(
             startup_behavior=startup_behavior,
             notifications_enabled=notifications_enabled,
@@ -63,6 +67,7 @@ class SettingsStore:
             skip_forward_seconds=skip_forward_seconds,
             download_directory=download_directory,
             auto_download_policy=auto_download_policy,
+            database_path=database_path,
         )
 
     def set_startup_behavior(self, enabled: bool) -> None:
@@ -97,6 +102,11 @@ class SettingsStore:
         self._settings.setValue(self.KEY_AUTO_DOWNLOAD_POLICY, chosen)
         return chosen
 
+    def set_database_path(self, path: str) -> str:
+        chosen = str(Path(path).expanduser())
+        self._settings.setValue(self.KEY_DATABASE_PATH, chosen)
+        return chosen
+    
     @staticmethod
     def _as_bool(value: object, *, default: bool) -> bool:
         if isinstance(value, bool):

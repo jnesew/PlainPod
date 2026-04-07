@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MPRIS_SERVICE = "org.mpris.MediaPlayer2.plainpod"
+MPRIS_SERVICE = "org.mpris.MediaPlayer2.io.github.jnesew.PlainPod"
 MPRIS_OBJECT_PATH = "/org/mpris/MediaPlayer2"
 
 
@@ -22,7 +22,7 @@ def _desktop_entry_basename() -> str:
         os.environ.get("FLATPAK_ID")
         or os.environ.get("G_APPLICATION_ID")
         or os.environ.get("DESKTOP_FILE_ID")
-        or ""
+        or "io.github.jnesew.PlainPod"
     )
 
 

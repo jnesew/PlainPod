@@ -5,6 +5,7 @@ import argparse
 import logging
 import os
 import sys
+from importlib.resources import files, as_file
 
 from PySide6.QtCore import QObject, Slot, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon, QAction
@@ -80,15 +81,11 @@ def _print_diagnostics(qml_file: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-
-    project_root = Path(__file__).resolve().parents[2]
-    icon_path = project_root / "resources" / "plainpod.svg"
-    
+ 
 
     args = _parse_args(argv or sys.argv[1:])
     log_file = configure_logging(db_path().parent)
-
-    qml_file = Path(__file__).resolve().parents[1] / "qml" / "Main.qml"
+    qml_file = files('plainpod').joinpath('qml/Main.qml')
     if args.diagnose:
         _print_diagnostics(qml_file)
     logger.info("PlainPod startup. Logs at: %s", log_file)
@@ -103,7 +100,10 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(2)
 
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon(str(icon_path)))
+    app.setDesktopFileName("io.github.jnesew.PlainPod")
+    app.setApplicationName("PlainPod")
+    app.setApplicationDisplayName("PlainPod")
+    app.setWindowIcon(QIcon.fromTheme("io.github.jnesew.PlainPod"))
     app.setQuitOnLastWindowClosed(False)
     if QGuiApplication.primaryScreen() is None and forced_platform not in {"offscreen", "minimal"}:
         print(
@@ -140,7 +140,7 @@ def main(argv: list[str] | None = None) -> None:
 
     window = engine.rootObjects()[0]
 
-    tray = QSystemTrayIcon(QIcon(str(icon_path)), app)
+    tray = QSystemTrayIcon(QIcon.fromTheme("io.github.jnesew.PlainPod"), app)
     menu = QMenu()
 
     toggle_action = QAction("Show Window", app)

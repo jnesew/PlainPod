@@ -235,7 +235,7 @@ Kirigami.ApplicationWindow {
                                                 width: 20
                                                 height: 20
                                                 visible: artwork_source.length === 0
-                                                opacity: 0.5 // Optional: dims the placeholder slightly
+                                                opacity: 0.5 
                                             }
                                         }
 
@@ -296,14 +296,13 @@ Kirigami.ApplicationWindow {
                                             text: vm.selected_podcast_title.length > 0 ? vm.selected_podcast_title : "Selected Podcast"
                                             font.pointSize: 14
                                             font.bold: true
-                                            Layout.fillWidth: true      // <-- Force it to stay inside the layout
-                                            elide: Text.ElideRight      // <-- Cut off long titles with '...'
-                                            // OR: wrapMode: Text.Wrap  // <-- Use this instead of elide if you prefer titles to wrap to a second line
+                                            Layout.fillWidth: true      
+                                            elide: Text.ElideRight
                                         }
                                         Label {
                                             text: vm.selected_podcast_site_url.length > 0 ? vm.selected_podcast_site_url : "No site URL"
                                             opacity: 0.7
-                                            Layout.fillWidth: true      // <-- Required to make the elide work!
+                                            Layout.fillWidth: true      
                                             elide: Text.ElideRight
                                         }
                                         Label {
@@ -447,7 +446,10 @@ Kirigami.ApplicationWindow {
                         placeholderText: "Filter downloads"
                         onTextChanged: vm.set_download_filter(text)
                     }
-
+                    ComboBox {
+                        model: ["Newest", "Oldest", "Duration (Longest)"]
+                        onActivated: vm.set_episode_sort_downloads(currentIndex)
+                    }
                     ListView {
                         Layout.fillWidth: true
                         Layout.fillHeight: true

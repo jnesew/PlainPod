@@ -54,6 +54,12 @@ class AppViewModel(QObject):
     EPISODE_SORT_OLDEST = 1
     EPISODE_SORT_DURATION_DESC = 2
 
+
+    EPISODE_DOWNLOADS_SORT_NEWEST = 0
+    EPISODE_DONWLOADS_SORT_OLDEST = 1
+    EPISODE_DOWNLOADS_SORT_DURATION_DESC = 2
+
+
     error = Signal(str)
     info = Signal(str)
     selected_podcast_title_changed = Signal()
@@ -677,6 +683,13 @@ class AppViewModel(QObject):
         self._episode_sort_mode = mode
         self._apply_episode_filter_and_sort()
 
+    @Slot(int)
+    def set_episode_sort_downloads(self, mode: int) -> None:
+        if mode not in {self.EPISODE_DOWNLOADS_SORT_NEWEST, self.EPISODE_DONWLOADS_SORT_OLDEST, self.EPISODE_DOWNLOADS_SORT_DURATION_DESC}:
+            mode = self.EPISODE_DOWNLOADS_SORT_NEWEST
+        self._downloads_episode_sort_mode = mode
+        self._apply_downloads_episode_filter_sort()
+
     @Slot(str)
     def set_download_filter(self, text: str) -> None:
         self._download_filter = text
@@ -698,6 +711,36 @@ class AppViewModel(QObject):
             or filter_text in (item.get("feed_url") or "").lower()
         ]
         self._podcast_model.set_items(filtered)
+
+
+    #Hacky PoC copy paste sorting for downloads. ToDo: unify under  _apply_episode_filter_and_sort (add view param ). Also unify _episode_completed_at under timestamp with param to select completed_at at vs  published_at
+    def _apply_downloads_episode_filter_sort(self) -> None:
+        items = list(self._download_model._items)
+        filter_text = self._episode_filter.strip().lower()
+        if filter_text:
+            items = [item for item in items if filter_text in (item.get("title") or "").lower()]
+
+        if self._downloads_episode_sort_mode == self.EPISODE_DONWLOADS_SORT_OLDEST:
+            items.sort(key=lambda item: (self._episode_completed_at(item),  (item.get("title") or "").lower(), item.get("id", 0)))
+        elif self._downloads_episode_sort_mode == self.EPISODE_DOWNLOADS_SORT_DURATION_DESC:
+            items.sort(
+                key=lambda item: (
+                    -(item.get("duration_seconds") or 0),
+                    -self._episode_completed_at(item),
+                    (item.get("title") or "").lower(),
+                    item.get("id", 0),
+                )
+            )
+        else:
+            items.sort(
+                key=lambda item: (
+                    -self._episode_completed_at(item),
+                    (item.get("title") or "").lower(),
+                    item.get("id", 0),
+                )
+            )
+
+        self._download_model.set_items(items)
 
     def _apply_episode_filter_and_sort(self) -> None:
         items = list(self._episode_items_all)
@@ -742,6 +785,18 @@ class AppViewModel(QObject):
     @staticmethod
     def _episode_timestamp(item: dict[str, Any]) -> float:
         published_at = item.get("published_at")
+        if not published_at:
+            return 0.0
+        if isinstance(published_at, str) and published_at.endswith("Z"):
+            published_at = f"{published_at[:-1]}+00:00"
+        try:
+            return datetime.fromisoformat(published_at).timestamp()
+        except (TypeError, ValueError):
+            return 0.0
+        
+    @staticmethod
+    def _episode_completed_at(item: dict[str, Any]) -> float:
+        published_at = item.get("completed_at")
         if not published_at:
             return 0.0
         if isinstance(published_at, str) and published_at.endswith("Z"):

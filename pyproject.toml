@@ -4,11 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PlainPod"
-version = "0.1.0"
+version = "0.1.1"
 description = "simple podcast app scaffold"
 requires-python = ">=3.11"
 dependencies = [
-  "PySide6>=6.7",
   "dbus-next>=0.2.3",
 ]
 

@@ -447,7 +447,7 @@ Kirigami.ApplicationWindow {
                         onTextChanged: vm.set_download_filter(text)
                     }
                     ComboBox {
-                        model: ["Newest", "Oldest", "Duration (Longest)"]
+                        model: ["Newest", "Oldest"]
                         onActivated: vm.set_episode_sort_downloads(currentIndex)
                     }
                     ListView {

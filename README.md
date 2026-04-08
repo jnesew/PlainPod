@@ -14,6 +14,7 @@ This initial version implements:
 - Basic playback state persistence
 - Episode streaming URL handoff to player
 - Episode download to local storage
+- Global auto download policy (all, new, none)
 - OPML import/export
 - MPRIS/system tray integration 
 
@@ -46,7 +47,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python -m plainpod
 ```
-
+[Or get the flatpack (.flatpakref)](https://github.com/jnesew/PlainPod/releases/latest/download/plainpod.flatpakref)
 
 ## Data location
 

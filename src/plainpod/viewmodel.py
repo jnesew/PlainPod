@@ -268,7 +268,7 @@ class AppViewModel(QObject):
                 self.selected_podcast_id_changed.emit()
             self._set_selected_podcast_fields(title="", site_url="", description="", artwork_url="")
             self._episode_items_all = []
-            self._apply_episode_filter_and_sort()
+            self._apply_episode_filter_and_sort('main')
             return
 
         if self.selected_podcast_id != podcast.id:
@@ -454,7 +454,7 @@ class AppViewModel(QObject):
             if selected_episode is not None:
                 selected_episode["progress_seconds"] = position_seconds
                 selected_episode["played"] = int(played)
-                self._apply_episode_filter_and_sort()
+                self._apply_episode_filter_and_sort('main')
 
     def _on_player_position_changed(self, position_ms: int) -> None:
         if self._playback_position_ms != position_ms:
@@ -668,7 +668,7 @@ class AppViewModel(QObject):
     @Slot(str)
     def set_episode_filter(self, text: str) -> None:
         self._episode_filter = text
-        self._apply_episode_filter_and_sort()
+        self._apply_episode_filter_and_sort('main')
 
     @Slot(int)
     def set_episode_sort(self, mode: int) -> None:

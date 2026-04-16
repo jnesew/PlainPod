@@ -111,6 +111,7 @@ class AppViewModel(QObject):
         self._volume = self.player.volume()
         self._playback_speed = self.player.playback_speed()
         self._last_progress_persisted_ms = -1
+        self._auto_advance_in_progress = False
 
         self._podcast_model = DictListModel(["podcast_id", "title", "feed_url", "download_policy", "artwork_source"])
         self._episode_model = DictListModel([
@@ -152,6 +153,7 @@ class AppViewModel(QObject):
         self.player.position_changed.connect(self._on_player_position_changed)
         self.player.duration_changed.connect(self._on_player_duration_changed)
         self.player.playing_changed.connect(self._on_player_playing_changed)
+        self.player.playback_finished.connect(self._on_player_finished)
 
         self._progress_save_timer = QTimer(self)
         self._progress_save_timer.setInterval(10_000)
@@ -284,6 +286,43 @@ class AppViewModel(QObject):
         for episode in self.repo.episodes_for_podcast(podcast.id):
             self._episode_items_all.append(self._episode_item_from_row(episode))
         self._apply_episode_filter_and_sort('main')
+        
+    @Slot()
+    def _on_player_finished(self) -> None:
+        if self._auto_advance_in_progress:
+            return
+        self._auto_advance_in_progress = True
+        try:
+            current_episode_id = self._now_playing_episode_id
+            if current_episode_id is not None:
+                final_position_ms = max(self._playback_position_ms, self._playback_duration_ms)
+                final_position_seconds = max(0, final_position_ms // 1000)
+                self.repo.update_episode_progress(current_episode_id, final_position_seconds, played=True)
+                self._last_progress_persisted_ms = final_position_ms
+
+            next_episode_id = self.repo.dequeue_next()
+            if next_episode_id is not None:
+                next_episode = self.repo.get_episode(next_episode_id)
+                message = (
+                    f"Now playing next queued episode: {next_episode.title}"
+                    if next_episode is not None
+                    else "Now playing next queued episode…"
+                )
+                self.play_episode(next_episode_id, info_message=message)
+                self.refresh_queue()
+                return
+
+            self._set_now_playing_episode(None)
+            if self._playback_position_ms != 0:
+                self._playback_position_ms = 0
+                self.playback_position_ms_changed.emit()
+            if self._playback_duration_ms != 0:
+                self._playback_duration_ms = 0
+                self.playback_duration_ms_changed.emit()
+            self._last_progress_persisted_ms = -1
+            self.refresh_queue()
+        finally:
+            self._auto_advance_in_progress = False
 
     @Slot(int)
     def remove_podcast(self, podcast_id: int) -> None:
@@ -319,23 +358,28 @@ class AppViewModel(QObject):
             self.error.emit(f"Refresh failed: {exc}")
 
     @Slot(int)
-    def play_episode(self, episode_id: int) -> None:
-        episode = self.repo.get_episode(episode_id)
-        if not episode:
-            self.logger.error("Play requested for missing episode id=%s", episode_id)
-            return
-        self._persist_playback_progress()
-        self._now_playing_episode_id = None
-        start_position_ms = self._resume_position_ms_for_episode(episode)
-        if episode.local_path:
-            self.player.play_file(episode.local_path, start_position_ms=start_position_ms)
-        else:
-            self.player.play_url(episode.media_url, start_position_ms=start_position_ms)
-        self._set_now_playing_episode(episode_id)
-        self._playback_position_ms = start_position_ms
-        self.playback_position_ms_changed.emit()
-        self.refresh_queue()
-        self.info.emit(f"Playing {episode.title}")
+    def play_episode(self, episode_id: int, *, info_message: str | None = None) -> None:
+        self._auto_advance_in_progress = True
+        try:
+            episode = self.repo.get_episode(episode_id)
+            if not episode:
+                self.logger.error("Play requested for missing episode id=%s", episode_id)
+                return
+            self.repo.remove_from_queue(episode_id)
+            self._persist_playback_progress()
+            self._now_playing_episode_id = None
+            start_position_ms = self._resume_position_ms_for_episode(episode)
+            if episode.local_path:
+                self.player.play_file(episode.local_path, start_position_ms=start_position_ms)
+            else:
+                self.player.play_url(episode.media_url, start_position_ms=start_position_ms)
+            self._set_now_playing_episode(episode_id)
+            self._playback_position_ms = start_position_ms
+            self.playback_position_ms_changed.emit()
+            self.refresh_queue()
+            self.info.emit(info_message or f"Playing {episode.title}")
+        finally:
+            self._auto_advance_in_progress = False
 
     def _apply_download_policy(self, podcast_id: int, existing_guids: set[str]) -> None:
         if self._settings.auto_download_policy == "off":
@@ -392,19 +436,25 @@ class AppViewModel(QObject):
 
     @Slot(int)
     def play_download(self, episode_id: int) -> None:
-        episode = self.repo.get_episode(episode_id)
-        if episode is None or not episode.local_path:
-            self.error.emit("Downloaded file is not available")
-            return
-        self._persist_playback_progress()
-        self._now_playing_episode_id = None
-        start_position_ms = self._resume_position_ms_for_episode(episode)
-        self.player.play_file(episode.local_path, start_position_ms=start_position_ms)
-        self._set_now_playing_episode(episode_id)
-        self._playback_position_ms = start_position_ms
-        self.playback_position_ms_changed.emit()
-        self.refresh_queue()
-        self.info.emit(f"Playing {episode.title}")
+        self._auto_advance_in_progress = True
+        try:
+            episode = self.repo.get_episode(episode_id)
+            if episode is None or not episode.local_path:
+                self.error.emit("Downloaded file is not available")
+                return
+            self.repo.remove_from_queue(episode_id)
+            self._persist_playback_progress()
+            self._now_playing_episode_id = None
+            start_position_ms = self._resume_position_ms_for_episode(episode)
+            self.player.play_file(episode.local_path, start_position_ms=start_position_ms)
+            self._set_now_playing_episode(episode_id)
+            self._playback_position_ms = start_position_ms
+            self.playback_position_ms_changed.emit()
+            self.refresh_queue()
+            self.info.emit(f"Playing {episode.title}")
+        finally:
+            self._auto_advance_in_progress = False
+
 
     def _resume_position_ms_for_episode(self, episode: Any) -> int:
         if bool(episode.played):
@@ -474,6 +524,14 @@ class AppViewModel(QObject):
             self.is_playing_changed.emit()
         if not is_playing:
             self._persist_playback_progress()
+            if (
+                self._now_playing_episode_id is not None
+                and self._playback_duration_ms > 0
+                and self._playback_position_ms >= self._playback_duration_ms
+            ):
+                self._on_player_finished()
+
+
 
     def refresh_queue(self) -> None:
         podcasts = list(self.repo.list_podcasts())

@@ -10,7 +10,7 @@ class PlayerController(QObject):
     position_changed = Signal(int)
     duration_changed = Signal(int)
     playing_changed = Signal(bool)
-
+    playback_finished = Signal()
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class PlayerController(QObject):
         self.player.errorOccurred.connect(
             lambda err, err_string: self.logger.error("Playback error (%s): %s", err, err_string or "<no message>")
         )
-        self.player.mediaStatusChanged.connect(self._apply_pending_start_position)
+        self.player.mediaStatusChanged.connect(self._on_media_status_changed)
 
     @property
     def is_playing(self) -> bool:
@@ -58,6 +58,11 @@ class PlayerController(QObject):
 
         self.player.setPosition(self._pending_start_position_ms)
         self._pending_start_position_ms = None
+
+    def _on_media_status_changed(self, status: QMediaPlayer.MediaStatus) -> None:
+        self._apply_pending_start_position(status)
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.playback_finished.emit()
 
     def pause(self) -> None:
         self.player.pause()

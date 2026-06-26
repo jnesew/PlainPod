@@ -7,17 +7,20 @@ import os
 import sys
 from importlib.resources import files, as_file
 
-from PySide6.QtCore import QObject, Slot, QUrl
+from PySide6.QtCore import QObject, Slot, QTimer, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon, QAction
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtWidgets import QApplication, QFileDialog, QSystemTrayIcon, QMenu
 
 from .download_manager import DownloadManager
+from .feed import fetch_feed
 from .opml import export_opml, import_opml
 from .paths import db_path, downloads_dir
 from .player import PlayerController
 from .repository import Repository
 from .settings import SettingsStore
+from .sync_config import SyncServerConfigurationError, build_sync_server_config
+from .sync_server import LocalSyncServer, SyncServerConfig
 from .viewmodel import AppViewModel
 from .logging_utils import configure_logging
 from .mpris import MprisService
@@ -116,11 +119,30 @@ def main(argv: list[str] | None = None) -> None:
     app_settings = settings.load()
     repo = Repository(Path(app_settings.database_path))
     player = PlayerController()
-    downloads = DownloadManager(downloads_dir())
+    downloads = DownloadManager(downloads_dir(), repository=repo)
     vm = AppViewModel(repo, downloads, player, settings)
     opml = OpmlController(vm, repo)
     vm.error.connect(lambda msg: logger.error("UI error: %s", msg))
     vm.info.connect(lambda msg: logger.info("UI info: %s", msg))
+    try:
+        sync_config = build_sync_server_config(app_settings)
+    except SyncServerConfigurationError as exc:
+        logger.warning("Local sync server not started: %s", exc)
+        vm.error.emit(str(exc) + " Configure local sync credentials before restarting.")
+        sync_config = SyncServerConfig(enabled=False)
+
+    sync_server = LocalSyncServer(repo, sync_config, fetch_feed_fn=fetch_feed)
+    if sync_server.config.enabled:
+        try:
+            sync_server.start()
+            logger.info(
+                "PlainPod local sync server listening on %s:%s",
+                sync_server.config.host,
+                sync_server.config.port,
+            )
+        except Exception:
+            logger.exception("Failed to start PlainPod local sync server")
+            vm.error.emit("Failed to start local sync server; see logs for details.")
 
     engine = QQmlApplicationEngine()
 
@@ -134,6 +156,8 @@ def main(argv: list[str] | None = None) -> None:
     ctx.setContextProperty("opml", opml)
 
     engine.load(QUrl.fromLocalFile(str(qml_file)))
+    if app_settings.refresh_feeds_on_startup:
+        QTimer.singleShot(0, vm.refresh_all_podcasts)
 
     if not engine.rootObjects():
         print(f"[plainpod] Failed to load QML UI from {qml_file}", file=sys.stderr)
@@ -187,6 +211,7 @@ def main(argv: list[str] | None = None) -> None:
     mpris = MprisService(vm, player)
     mpris.register()
     app.aboutToQuit.connect(mpris.unregister)
+    app.aboutToQuit.connect(sync_server.stop)
 
     app.aboutToQuit.connect(repo.close)
     sys.exit(app.exec())

@@ -173,6 +173,11 @@ Kirigami.ApplicationWindow {
                                     icon.name: "document-import"
                                     onClicked: opml.import_file()
                                 }
+                                Button {
+                                    text: "Refresh All"
+                                    icon.name: "view-refresh"
+                                    onClicked: vm.refresh_all_podcasts()
+                                }
                                 TextField {
                                     Layout.fillWidth: true
                                     placeholderText: "Filter subscriptions"
@@ -201,6 +206,10 @@ Kirigami.ApplicationWindow {
                                     required property int podcast_id
                                     required property string title
                                     required property string artwork_source
+                                    required property string latest_episode_display
+                                    required property int new_count
+                                    required property bool is_stale
+                                    required property string stale_label
                                     width: ListView.view.width
                                     padding: Kirigami.Units.smallSpacing
                                     highlighted: root.activePodcastIndex === index
@@ -239,11 +248,39 @@ Kirigami.ApplicationWindow {
                                             }
                                         }
 
-                                        Label {
+                                        ColumnLayout {
                                             Layout.fillWidth: true
-                                            text: title
-                                            elide: Text.ElideRight
-                                            font.bold: root.activePodcastIndex === index
+                                            spacing: 2
+
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: title
+                                                elide: Text.ElideRight
+                                                font.bold: root.activePodcastIndex === index
+                                            }
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: Kirigami.Units.smallSpacing
+                                                Label {
+                                                    text: latest_episode_display
+                                                    opacity: 0.7
+                                                    font.pointSize: 9
+                                                    elide: Text.ElideRight
+                                                }
+                                                Label {
+                                                    visible: new_count > 0
+                                                    text: `${new_count} new`
+                                                    color: Kirigami.Theme.positiveTextColor
+                                                    font.pointSize: 9
+                                                }
+                                                Label {
+                                                    visible: is_stale
+                                                    text: stale_label
+                                                    color: Kirigami.Theme.neutralTextColor
+                                                    font.pointSize: 9
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -322,6 +359,35 @@ Kirigami.ApplicationWindow {
                                             icon.name: "view-refresh"
                                             onClicked: vm.refresh_selected()
                                         }
+                                        ComboBox {
+                                            id: podcastDownloadPolicyCombo
+                                            model: [
+                                                { label: "Manual", value: "ask" },
+                                                { label: "Off", value: "off" },
+                                                { label: "All new", value: "new_episodes" },
+                                                { label: "Newest 1", value: "latest_1" },
+                                                { label: "Newest 3", value: "latest_3" },
+                                                { label: "Newest 5", value: "latest_5" },
+                                                { label: "Newest 10", value: "latest_10" }
+                                            ]
+                                            textRole: "label"
+                                            valueRole: "value"
+                                            function syncFromViewModel() {
+                                                const idx = indexOfValue(vm.selected_podcast_download_policy)
+                                                currentIndex = idx >= 0 ? idx : 0
+                                            }
+                                            Component.onCompleted: syncFromViewModel()
+                                            Connections {
+                                                target: vm
+                                                function onSelected_podcast_download_policy_changed() {
+                                                    podcastDownloadPolicyCombo.syncFromViewModel()
+                                                }
+                                                function onSelected_podcast_id_changed() {
+                                                    podcastDownloadPolicyCombo.syncFromViewModel()
+                                                }
+                                            }
+                                            onActivated: vm.selected_podcast_download_policy = currentValue
+                                        }
                                         Button {
                                             text: "Unsubscribe"
                                             icon.name: "list-remove"
@@ -357,7 +423,14 @@ Kirigami.ApplicationWindow {
                                     required property string title
                                     required property string published_display
                                     required property string duration
+                                    required property bool has_progress
+                                    required property string progress_display
+                                    required property string local_path
                                     required property bool played
+                                    required property bool is_new_since_launch
+                                    required property bool is_unplayed
+                                    required property bool is_in_progress
+                                    required property string episode_badge_label
                                     width: ListView.view.width
 
                                     contentItem: RowLayout {
@@ -383,7 +456,7 @@ Kirigami.ApplicationWindow {
                                                 }
 
                                                 Label {
-                                                    text: duration
+                                                    text: has_progress ? `${duration} • ${progress_display}` : duration
                                                     opacity: 0.7
                                                 }
                                             }
@@ -396,14 +469,15 @@ Kirigami.ApplicationWindow {
 
                                             Rectangle {
                                                 radius: 8
-                                                color: played ? "#3b7b44" : "#2f5f9e"
+                                                visible: episode_badge_label.length > 0
+                                                color: played ? "#3b7b44" : (is_in_progress ? "#7a3f9e" : (is_new_since_launch ? "#2f5f9e" : "#7a5c2e"))
                                                 implicitWidth: badgeLabel.implicitWidth + 12
                                                 implicitHeight: badgeLabel.implicitHeight + 4
 
                                                 Label {
                                                     id: badgeLabel
                                                     anchors.centerIn: parent
-                                                    text: played ? "Played" : "New"
+                                                    text: episode_badge_label
                                                     color: "white"
                                                     font.pointSize: 9
                                                 }
@@ -418,6 +492,9 @@ Kirigami.ApplicationWindow {
                                             Button {
                                                 icon.name: "download"
                                                 Layout.preferredWidth: 72
+                                                enabled: local_path.trim().length === 0
+                                                ToolTip.visible: hovered && !enabled
+                                                ToolTip.text: "Already downloaded"
                                                 onClicked: vm.download_episode(episode_id)
                                             }
 
@@ -473,6 +550,7 @@ Kirigami.ApplicationWindow {
                             required property string section
                             required property int episode_id
                             required property string title
+                            required property string podcast_title
                             required property string progress_label
                             required property string speed_label
                             required property int progress_percent
@@ -487,6 +565,14 @@ Kirigami.ApplicationWindow {
                                     font.bold: true
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
+                                }
+
+                                Label {
+                                    text: podcast_title
+                                    opacity: 0.65
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                    visible: podcast_title.length > 0
                                 }
 
                                 RowLayout {
@@ -721,16 +807,101 @@ Kirigami.ApplicationWindow {
 
                             Kirigami.FormLayout {
                                 CheckBox {
+                                    id: startAtLoginCheckBox
                                     Kirigami.FormData.label: ""
                                     text: "Start at login"
                                     checked: vm.startup_behavior
-                                    onToggled: vm.startup_behavior = checked
+                                    onClicked: vm.set_startup_behavior_enabled(checked)
+
+                                    Connections {
+                                        target: vm
+                                        function onStartup_behavior_changed() {
+                                            startAtLoginCheckBox.checked = vm.startup_behavior
+                                        }
+                                    }
                                 }
                                 CheckBox {
+                                    id: notificationsEnabledCheckBox
                                     Kirigami.FormData.label: ""
                                     text: "Show notifications for new episodes"
                                     checked: vm.notifications_enabled
-                                    onToggled: vm.notifications_enabled = checked
+                                    onClicked: vm.set_notifications_enabled(checked)
+
+                                    Connections {
+                                        target: vm
+                                        function onNotifications_enabled_changed() {
+                                            notificationsEnabledCheckBox.checked = vm.notifications_enabled
+                                        }
+                                    }
+                                }
+                                CheckBox {
+                                    id: refreshFeedsOnStartupCheckBox
+                                    Kirigami.FormData.label: ""
+                                    text: "Refresh feeds on startup"
+                                    checked: vm.refresh_feeds_on_startup
+                                    onClicked: vm.set_refresh_feeds_on_startup_enabled(checked)
+
+                                    Connections {
+                                        target: vm
+                                        function onRefresh_feeds_on_startup_changed() {
+                                            refreshFeedsOnStartupCheckBox.checked = vm.refresh_feeds_on_startup
+                                        }
+                                    }
+                                }
+                                CheckBox {
+                                    Kirigami.FormData.label: ""
+                                    text: "Enable local sync server (restart required)"
+                                    checked: vm.sync_server_enabled
+                                    property bool initialized: false
+                                    Component.onCompleted: initialized = true
+                                    onToggled: {
+                                        if (initialized && vm.sync_server_enabled !== checked) {
+                                            vm.sync_server_enabled = checked
+                                        }
+                                    }
+                                }
+                                TextField {
+                                    Kirigami.FormData.label: "Sync host"
+                                    enabled: vm.sync_server_enabled
+                                    visible: vm.sync_server_enabled
+                                    text: vm.sync_server_host
+                                    placeholderText: "127.0.0.1"
+                                    onEditingFinished: vm.sync_server_host = text
+                                }
+                                SpinBox {
+                                    Kirigami.FormData.label: "Sync port"
+                                    enabled: vm.sync_server_enabled
+                                    visible: vm.sync_server_enabled
+                                    from: 1
+                                    to: 65535
+                                    value: vm.sync_server_port
+                                    onValueModified: vm.sync_server_port = value
+                                }
+                                CheckBox {
+                                    Kirigami.FormData.label: ""
+                                    enabled: vm.sync_server_enabled
+                                    visible: vm.sync_server_enabled
+                                    text: "Require Basic Auth"
+                                    checked: vm.sync_server_require_auth
+                                    onClicked: vm.sync_server_require_auth = checked
+                                }
+                                TextField {
+                                    Kirigami.FormData.label: "Sync username"
+                                    enabled: vm.sync_server_enabled && vm.sync_server_require_auth
+                                    visible: vm.sync_server_enabled && vm.sync_server_require_auth
+                                    text: vm.sync_server_username
+                                    placeholderText: "plainpod"
+                                    onEditingFinished: vm.sync_server_username = text
+                                }
+                                Label {
+                                    visible: vm.sync_server_enabled && vm.sync_server_require_auth
+                                    wrapMode: Text.WordWrap
+                                    text: "Set PLAINPOD_SYNC_PASSWORD or store the password in your Linux keyring. Basic Auth should not be exposed on a network without TLS or a reverse proxy."
+                                }
+                                Label {
+                                    visible: vm.sync_server_enabled && vm.sync_server_host === "0.0.0.0"
+                                    wrapMode: Text.WordWrap
+                                    text: "Warning: 0.0.0.0 exposes local sync on all network interfaces."
                                 }
                             }
 
@@ -768,12 +939,23 @@ Kirigami.ApplicationWindow {
                                     Label { Layout.fillWidth: true; text: vm.download_directory; elide: Text.ElideMiddle }
                                     Button { text: "Browse..."; onClicked: vm.browse_download_directory() }
                                 }
+                                SpinBox {
+                                    Kirigami.FormData.label: "Max concurrent downloads"
+                                    from: 1
+                                    to: 10
+                                    value: vm.max_concurrent_downloads
+                                    onValueModified: vm.max_concurrent_downloads = value
+                                }
                                 ComboBox {
-                                    Kirigami.FormData.label: "Auto-download policy"
+                                    Kirigami.FormData.label: "Default for new podcasts"
                                     model: [
+                                        { label: "Manual", value: "ask" },
                                         { label: "Off", value: "off" },
-                                        { label: "New episodes", value: "new_episodes" },
-                                        { label: "All episodes", value: "all_episodes" }
+                                        { label: "All new", value: "new_episodes" },
+                                        { label: "Newest 1", value: "latest_1" },
+                                        { label: "Newest 3", value: "latest_3" },
+                                        { label: "Newest 5", value: "latest_5" },
+                                        { label: "Newest 10", value: "latest_10" }
                                     ]
                                     textRole: "label"
                                     valueRole: "value"

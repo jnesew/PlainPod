@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import logging
 import re
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 
@@ -14,6 +15,17 @@ class FeedData:
     description: str | None
     artwork_url: str | None
     episodes: list[dict]
+
+
+_DEFAULT_ALLOWED_ENCLOSURE_SCHEMES = frozenset({"https", "http"})
+
+
+def _is_valid_enclosure_url(url: str, *, allow_file_scheme: bool = False) -> bool:
+    parsed = urlparse(url)
+    allowed_schemes = set(_DEFAULT_ALLOWED_ENCLOSURE_SCHEMES)
+    if allow_file_scheme:
+        allowed_schemes.add("file")
+    return parsed.scheme.lower() in allowed_schemes
 
 
 def _parse_duration(raw: str | None) -> int | None:
@@ -56,7 +68,7 @@ def _channel_artwork_url(channel: ET.Element) -> str | None:
     return None
 
 
-def fetch_feed(url: str) -> FeedData:
+def fetch_feed(url: str, *, allow_file_scheme: bool = False) -> FeedData:
     logger = logging.getLogger(__name__)
     logger.info("Fetching feed: %s", url)
     xml_text = urlopen(url, timeout=20).read().decode("utf-8", errors="replace")
@@ -71,10 +83,23 @@ def fetch_feed(url: str) -> FeedData:
         media_url = enc.get("url") if enc is not None else None
         if not media_url:
             continue
+        guid = _child_text(item, ["guid"]) or media_url
+        title = _child_text(item, ["title"]) or "Untitled episode"
+        if not _is_valid_enclosure_url(media_url, allow_file_scheme=allow_file_scheme):
+            logger.warning(
+                "Skipping feed item with unsupported enclosure scheme",
+                extra={
+                    "feed_url": url,
+                    "guid": guid,
+                    "title": title,
+                    "media_url": media_url,
+                },
+            )
+            continue
         episodes.append(
             {
-                "guid": (_child_text(item, ["guid"]) or media_url),
-                "title": (_child_text(item, ["title"]) or "Untitled episode"),
+                "guid": guid,
+                "title": title,
                 "description": _child_text(item, ["description"]),
                 "published_at": _child_text(item, ["pubDate"]),
                 "duration_seconds": _parse_duration(
